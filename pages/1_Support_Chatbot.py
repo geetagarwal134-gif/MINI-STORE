@@ -1,137 +1,140 @@
 import streamlit as st
+from openai import OpenAI
 
+# ---------------------------------------------------
+# Page Config
+# ---------------------------------------------------
 st.set_page_config(
-    page_title="Support Chatbot",
+    page_title="MiniStore Support Chatbot",
     page_icon="💬",
     layout="wide"
 )
 
-st.title("💬 MiniStore Support Chatbot")
+st.title("💬 MiniStore AI Support")
 
 # ---------------------------------------------------
-# Product Knowledge Base
+# OpenAI Client
 # ---------------------------------------------------
-products = st.session_state.get(
-    "products",
-    [
-        {"name": "Wireless Bluetooth Headphones", "price": 79.99},
-        {"name": "Smart Fitness Watch", "price": 129.99},
-        {"name": "Mechanical Keyboard", "price": 89.99},
-        {"name": "Minimalist Backpack", "price": 54.99},
-        {"name": "Portable Coffee Maker", "price": 39.99},
-        {"name": "LED Desk Lamp", "price": 29.99},
-    ]
+client = OpenAI(
+    api_key=st.secrets["OPENAI_API_KEY"]
 )
 
 # ---------------------------------------------------
-# Chat History
+# Product Catalog
+# ---------------------------------------------------
+products = [
+    {
+        "name": "Wireless Bluetooth Headphones",
+        "price": "$79.99",
+        "category": "Electronics",
+        "description": "Premium over-ear headphones with noise cancellation and 30-hour battery life."
+    },
+    {
+        "name": "Smart Fitness Watch",
+        "price": "$129.99",
+        "category": "Wearables",
+        "description": "Track workouts, sleep, heart rate, and notifications."
+    },
+    {
+        "name": "Mechanical Keyboard",
+        "price": "$89.99",
+        "category": "Electronics",
+        "description": "RGB mechanical keyboard with tactile switches."
+    },
+    {
+        "name": "Minimalist Backpack",
+        "price": "$54.99",
+        "category": "Fashion",
+        "description": "Stylish and durable backpack for work and travel."
+    },
+    {
+        "name": "Portable Coffee Maker",
+        "price": "$39.99",
+        "category": "Home & Kitchen",
+        "description": "Compact coffee maker for home and travel."
+    },
+    {
+        "name": "LED Desk Lamp",
+        "price": "$29.99",
+        "category": "Home & Kitchen",
+        "description": "Adjustable brightness with eye-care lighting."
+    }
+]
+
+# ---------------------------------------------------
+# Build Product Knowledge
+# ---------------------------------------------------
+catalog_text = ""
+
+for p in products:
+    catalog_text += f"""
+Product: {p['name']}
+Category: {p['category']}
+Price: {p['price']}
+Description: {p['description']}
+"""
+
+# ---------------------------------------------------
+# System Prompt
+# ---------------------------------------------------
+SYSTEM_PROMPT = f"""
+You are MiniStore's professional customer support representative.
+
+Your responsibilities:
+- Help customers with products
+- Order status
+- Delivery and shipping
+- Refunds
+- Returns
+- Payment methods
+- Store policies
+
+Store Catalog:
+{catalog_text}
+
+Rules:
+1. Only answer questions related to MiniStore.
+2. Use the catalog information when discussing products.
+3. If a user asks unrelated questions
+   (science, coding, history, politics, math, etc.),
+   politely redirect them back to MiniStore support topics.
+4. Be professional, concise, and friendly.
+5. Never invent products not listed in the catalog.
+"""
+
+# ---------------------------------------------------
+# Session State Chat History
 # ---------------------------------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {
             "role": "assistant",
             "content": (
-                "Hello! I'm MiniStore Support. "
-                "Ask me about products, delivery, returns, refunds, payments, or orders."
+                "Hello! 👋 Welcome to MiniStore Support.\n\n"
+                "I can help with:\n"
+                "• Products\n"
+                "• Orders\n"
+                "• Delivery\n"
+                "• Refunds\n"
+                "• Returns\n"
+                "• Payments"
             )
         }
     ]
 
-# Display previous messages
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+# ---------------------------------------------------
+# Display Chat History
+# ---------------------------------------------------
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
 # ---------------------------------------------------
-# Rule-Based Chatbot Logic
+# User Input
 # ---------------------------------------------------
-def chatbot_response(user_message):
+if prompt := st.chat_input("Ask about products, orders, delivery, refunds..."):
 
-    message = user_message.lower()
-
-    # Product Queries
-    for product in products:
-        if product["name"].lower() in message:
-            return (
-                f"📦 {product['name']} is available "
-                f"for ${product['price']}."
-            )
-
-    if "product" in message:
-        product_names = "\n".join(
-            [f"• {p['name']}" for p in products]
-        )
-        return f"We currently sell:\n\n{product_names}"
-
-    # Delivery
-    if any(word in message for word in [
-        "delivery",
-        "shipping",
-        "ship"
-    ]):
-        return (
-            "🚚 Standard delivery takes 3–5 business days. "
-            "Express delivery takes 1–2 business days."
-        )
-
-    # Refunds
-    if "refund" in message:
-        return (
-            "💰 Refunds are processed within "
-            "5–7 business days after approval."
-        )
-
-    # Returns
-    if "return" in message:
-        return (
-            "↩️ Returns are accepted within 30 days "
-            "of receiving the product."
-        )
-
-    # Payment
-    if any(word in message for word in [
-        "payment",
-        "pay",
-        "card",
-        "upi"
-    ]):
-        return (
-            "💳 We accept Credit Cards, Debit Cards, "
-            "UPI, Net Banking, and PayPal."
-        )
-
-    # Order Status
-    if any(word in message for word in [
-        "order",
-        "status",
-        "track"
-    ]):
-        return (
-            "📍 To check order status, provide your "
-            "Order ID. (Demo version)"
-        )
-
-    # Greeting
-    if any(word in message for word in [
-        "hello",
-        "hi",
-        "hey"
-    ]):
-        return (
-            "👋 Hello! How can I help you today?"
-        )
-
-    return (
-        "I'm sorry, I didn't understand that. "
-        "Try asking about products, delivery, refunds, "
-        "returns, payments, or orders."
-    )
-
-# ---------------------------------------------------
-# Chat Input
-# ---------------------------------------------------
-if prompt := st.chat_input("Ask a question..."):
-
+    # Show user message
     st.session_state.messages.append(
         {"role": "user", "content": prompt}
     )
@@ -139,11 +142,33 @@ if prompt := st.chat_input("Ask a question..."):
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    response = chatbot_response(prompt)
+    # Build conversation
+    messages = [
+        {
+            "role": "system",
+            "content": SYSTEM_PROMPT
+        }
+    ]
 
-    st.session_state.messages.append(
-        {"role": "assistant", "content": response}
+    messages.extend(st.session_state.messages)
+
+    # Generate response
+    response = client.chat.completions.create(
+        model="gpt-4.1-mini",
+        messages=messages,
+        temperature=0.3
     )
 
+    assistant_reply = response.choices[0].message.content
+
+    # Save response
+    st.session_state.messages.append(
+        {
+            "role": "assistant",
+            "content": assistant_reply
+        }
+    )
+
+    # Display response
     with st.chat_message("assistant"):
-        st.markdown(response)
+        st.markdown(assistant_reply)
